@@ -30,6 +30,8 @@ public class Parser {
 				Trade trade = parseTrade(line);
 				if (trade != null) {
 					ret.add(trade);
+				} else {
+					System.err.println("Ignored " + line);
 				}
 			}
 		}
@@ -49,7 +51,7 @@ public class Parser {
 		if (split.length < 13) {
 			return null;
 		}
-		if (!split[7].equals("CASH")) {
+		if (!(split[3].equals("BSE") || split[3].equals("NSE"))) {
 			return null;
 		}
 		trade.date = date;
