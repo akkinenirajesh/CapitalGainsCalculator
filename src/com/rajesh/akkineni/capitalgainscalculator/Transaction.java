@@ -1,12 +1,14 @@
 package com.rajesh.akkineni.capitalgainscalculator;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 
 public class Transaction {
 
 	String name;
-	Date buyDate;
-	Date sellDate;
+	LocalDate buyDate;
+	LocalDate sellDate;
 	int qty;
 	double buyRate;
 	double sellRate;
@@ -35,6 +37,10 @@ public class Transaction {
 		sb.append(",");
 		sb.append(String.format("%.2f", profit));
 		return sb.toString();
+	}
+
+	boolean isLongTerm() {
+		return ChronoUnit.DAYS.between(this.buyDate, sellDate) > 365;
 	}
 
 }

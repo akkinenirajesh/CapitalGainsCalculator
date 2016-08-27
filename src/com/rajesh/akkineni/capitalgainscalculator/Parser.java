@@ -5,14 +5,19 @@ import java.io.FileReader;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
 public class Parser {
-	public static DateFormat dateFormat1 = new SimpleDateFormat("dd-MMM-yyy");
-	private static Date date;
+	public static DateTimeFormatter dateFormat1 = new DateTimeFormatterBuilder().appendPattern("dd-MMM-yyy")
+			.toFormatter();
+	private static LocalDate date;
 
 	public static List<Trade> parse(String[] args) throws Exception {
 		List<Trade> ret = new ArrayList<>();
@@ -31,7 +36,7 @@ public class Parser {
 				if (trade != null) {
 					ret.add(trade);
 				} else {
-					System.err.println("Ignored " + line);
+					// System.err.println("Ignored " + line);
 				}
 			}
 		}
@@ -45,7 +50,7 @@ public class Parser {
 		if (split.length == 1) {
 			int dateIndex = split[0].indexOf("Trade Date: ");
 			if (dateIndex == 0) {
-				date = dateFormat1.parse(split[0].substring(12));
+				date = LocalDate.parse(split[0].substring(12), dateFormat1);
 			}
 		}
 		if (split.length < 13) {

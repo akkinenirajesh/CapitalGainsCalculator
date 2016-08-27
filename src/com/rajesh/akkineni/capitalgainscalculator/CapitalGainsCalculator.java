@@ -1,47 +1,59 @@
 package com.rajesh.akkineni.capitalgainscalculator;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 public class CapitalGainsCalculator {
 
 	private int fy;
-	private Date startDate;
-	private Date endDate;
+	private LocalDate startDate;
+	private LocalDate endDate;
 
 	public CapitalGainsCalculator(int fy) {
 		this.fy = fy;
-		Calendar cal = Calendar.getInstance();
-		cal.set(2000 + fy, 3, 1);
-		this.startDate = cal.getTime();
-		cal.set(2001 + fy, 2, 31);
-		this.endDate = cal.getTime();
+		this.startDate = LocalDate.of(2000 + fy, 4, 1);
+		this.endDate = LocalDate.of(2001 + fy, 3, 31);
 	}
 
 	public void calculate(String[] args) throws Exception {
 		List<Trade> trades = Parser.parse(args);
+
 		// sort by date
 		trades.sort((o1, o2) -> o1.date.compareTo(o2.date));
 
 		trades = combineByDateAndPrice(trades);
+
+		printTrades(trades);
 		// make a clone
 		List<Trade> clone = trades.stream().map(Trade::clone).collect(Collectors.toList());
 		List<Trade> buys = clone.stream().filter(i -> i.buy).collect(Collectors.toList());
 		List<Trade> sells = clone.stream().filter(i -> !i.buy).collect(Collectors.toList());
-		// trades.forEach(i -> System.out.println(i));
 
 		HashMap<String, Integer> missing = findMissingTrade(buys, sells);
-		// .filterv(i -> i.date.after(startDate) && i.date.before(endDate))
 		for (Entry<String, Integer> item : missing.entrySet()) {
 			System.out.println("Missing : " + item.getKey() + " : " + item.getValue());
 		}
 		List<Transaction> tx = computeTransactions(buys, sells);
 		tx.forEach(t -> System.out.println(t));
+		double shortTermGains = tx.stream().filter(t -> !t.isLongTerm()).mapToDouble(a -> a.profit).sum();
+		double longTermGains = tx.stream().filter(t -> t.isLongTerm()).mapToDouble(a -> a.profit).sum();
+		System.out.println("Short Term Gains: " + String.format("%.2f", shortTermGains));
+		System.out.println("Long Term Gains: " + String.format("%.2f", longTermGains));
+	}
+
+	private void printTrades(List<Trade> trades) {
+		Map<String, List<Trade>> collect = trades.stream().collect(Collectors.groupingBy(i -> i.name));
+		for (String name : collect.keySet()) {
+			System.out.println(" --- " + name + " --- ");
+			collect.get(name).forEach(i -> System.out.println(i));
+			System.out.println("\n\n");
+		}
+
 	}
 
 	private List<Trade> combineByDateAndPrice(List<Trade> trades) {
@@ -71,7 +83,7 @@ public class CapitalGainsCalculator {
 				if (!t.name.equals(i.name)) {
 					continue;
 				}
-				if (t.date.after(i.date)) {
+				if (t.date.isAfter(i.date)) {
 					continue;
 				}
 				if (t.qty == 0) {
@@ -97,6 +109,19 @@ public class CapitalGainsCalculator {
 					ret.add(tx);
 				}
 			}
+			if (i.qty > 0 && inFy(i)) {
+				Transaction tx = new Transaction();
+				tx.name = i.name;
+				tx.buyDate = i.date.minusYears(2);
+				tx.sellDate = i.date;
+				tx.qty = i.qty;
+				tx.buyRate = 0;
+				tx.buyBrok = 0;
+				tx.sellRate = i.rate;
+				tx.sellBrok = i.brok;
+				tx.profit = (tx.qty) * (tx.sellRate - tx.buyRate);
+				ret.add(tx);
+			}
 		});
 		return ret;
 	}
@@ -106,27 +131,27 @@ public class CapitalGainsCalculator {
 		final List<Trade> buys1 = buys.stream().map(Trade::clone).collect(Collectors.toList());
 		sells = sells.stream().map(Trade::clone).collect(Collectors.toList());
 		// find missing transactions
-		sells.forEach(i -> {
-			for (Trade t : buys1) {
-				if (!t.name.equals(i.name)) {
+		sells.forEach(sell -> {
+			for (Trade buy : buys1) {
+				if (!buy.name.equals(sell.name)) {
 					continue;
 				}
-				if (t.date.after(i.date)) {
+				if (sell.date.isBefore(buy.date)) {
 					continue;
 				}
-				if (t.qty == 0) {
+				if (buy.qty == 0) {
 					continue;
 				}
-				int qty = (Math.min(t.qty, i.qty));
-				i.qty -= qty;
-				t.qty -= qty;
+				int qty = (Math.min(buy.qty, sell.qty));
+				sell.qty -= qty;
+				buy.qty -= qty;
 			}
-			if (i.qty > 0 && inFy(i)) {
-				Integer qty = missing.get(i.name);
+			if (sell.qty > 0 && inFy(sell)) {
+				Integer qty = missing.get(sell.name);
 				if (qty == null) {
-					missing.put(i.name, i.qty);
+					missing.put(sell.name, sell.qty);
 				} else {
-					missing.put(i.name, i.qty + qty);
+					missing.put(sell.name, sell.qty + qty);
 				}
 			}
 		});
@@ -134,13 +159,12 @@ public class CapitalGainsCalculator {
 	}
 
 	private boolean inFy(Trade i) {
-		return i.date.after(startDate) && i.date.before(endDate);
+		return i.date.isAfter(startDate) && i.date.isBefore(endDate);
 	}
 
 	public static void main(String[] args) throws Exception {
 		new CapitalGainsCalculator(15)
-				.calculate(new String[] { "C:\\Users\\rajesh\\dev\\trading-ruby-parser\\Rajesh2014.csv",
-						"C:\\Users\\rajesh\\dev\\trading-ruby-parser\\Rajesh2016.csv" });
+				.calculate(new String[] { "C:\\Users\\rajes_000\\Google Drive\\dev\\Rajesh2016.csv" });
 	}
 
 }

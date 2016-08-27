@@ -1,9 +1,9 @@
 package com.rajesh.akkineni.capitalgainscalculator;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 public class Trade implements Cloneable {
-	Date date;
+	LocalDate date;
 	String name;
 	boolean buy;
 	int qty;
